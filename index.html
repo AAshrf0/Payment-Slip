@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام رواتب الموظفين</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="login-form">
+            <h2>تسجيل دخول الموظفين</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="employeeId">رقم الموظف:</label>
+                    <input type="number" id="employeeId" name="employeeId" placeholder="أدخل رقم الموظف" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">كلمة المرور:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit">تسجيل الدخول</button>
+                <div class="forgot-password">
+                    <a href="#" onclick="handleForgotPassword(); return false;">هل نسيت كلمة المرور؟</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="salary-slip" id="salarySlip" style="display: none;">
+            <h2>شيك راتب</h2>
+            <div id="employeeDetails"></div>
+            <button onclick="logout()" class="logout-btn">تسجيل خروج</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
