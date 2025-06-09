@@ -2,6 +2,26 @@ let employeeData = [];
 
 // Function to load data from Google Sheets
 async function loadGoogleSheetData() {
+    // Show loading indicator if on login page
+    const loginForm = document.querySelector('.login-form');
+    let loadingIndicator;
+    
+    if (loginForm && loginForm.style.display !== 'none') {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<p>جاري تحميل البيانات...</p>';
+        loadingIndicator.style.textAlign = 'center';
+        loadingIndicator.style.marginTop = '10px';
+        loadingIndicator.style.color = '#4CAF50';
+        
+        const existingIndicator = loginForm.querySelector('.loading-indicator');
+        if (existingIndicator) {
+            loginForm.removeChild(existingIndicator);
+        }
+        
+        loginForm.appendChild(loadingIndicator);
+    }
+    
     try {
         const SHEET_ID = '1XI3kkU5KgS_nu5-PsE-qdWzwlUWrwFB8oUo_d3kOgJI';
         const API_KEY = 'AIzaSyBiVZ_1ujqfT27mIGiERSmQd8pHqRy-o2k';
@@ -100,6 +120,38 @@ async function loadGoogleSheetData() {
         
     } catch (error) {
         console.error('Error:', error.message);
+        
+        // Show error message to user
+        if (loginForm && loginForm.style.display !== 'none') {
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.innerHTML = `<p style="color: red;">خطأ في تحميل البيانات: ${error.message}</p>`;
+            errorMessage.style.textAlign = 'center';
+            errorMessage.style.marginTop = '10px';
+            
+            const existingError = loginForm.querySelector('.error-message');
+            if (existingError) {
+                loginForm.removeChild(existingError);
+            }
+            
+            loginForm.appendChild(errorMessage);
+            
+            // Remove error message after 5 seconds
+            setTimeout(() => {
+                const currentError = loginForm.querySelector('.error-message');
+                if (currentError) {
+                    loginForm.removeChild(currentError);
+                }
+            }, 5000);
+        }
+    } finally {
+        // Remove loading indicator
+        if (loginForm && loadingIndicator) {
+            const indicator = loginForm.querySelector('.loading-indicator');
+            if (indicator) {
+                loginForm.removeChild(indicator);
+            }
+        }
     }
 }
 
@@ -142,7 +194,13 @@ function showSalarySlip(employee) {
         { value: 'March', text: 'مارس' },
         { value: 'April', text: 'أبريل' },
         { value: 'May', text: 'مايو' },
-        { value: 'June', text: 'يونيو' }
+        { value: 'June', text: 'يونيو' },
+        { value: 'July', text: 'يوليو' },
+        { value: 'August', text: 'أغسطس' },
+        { value: 'September', text: 'سبتمبر' },
+        { value: 'October', text: 'أكتوبر' },
+        { value: 'November', text: 'نوفمبر' },
+        { value: 'December', text: 'ديسمبر' }
     ];
 
     arabicMonths.forEach(month => {
@@ -154,9 +212,7 @@ function showSalarySlip(employee) {
 
     // Set current month as default
     const currentMonth = new Date().getMonth();
-    if (currentMonth < 6) {
-        monthSelector.value = arabicMonths[currentMonth].value;
-    }
+    monthSelector.value = arabicMonths[currentMonth].value;
 
     const employeeDetails = document.getElementById('employeeDetails');
     employeeDetails.innerHTML = '';
@@ -186,7 +242,13 @@ function showSalarySlip(employee) {
             'March': 'مارس',
             'April': 'أبريل',
             'May': 'مايو',
-            'June': 'يونيو'
+            'June': 'يونيو',
+            'July': 'يوليو',
+            'August': 'أغسطس',
+            'September': 'سبتمبر',
+            'October': 'أكتوبر',
+            'November': 'نوفمبر',
+            'December': 'ديسمبر'
         };
 
         // Get monthly data
@@ -237,11 +299,24 @@ function showSalarySlip(employee) {
 
 // Generate and download PDF
 function generatePDF(employee, month) {
+    // Show loading indicator
+    const downloadButton = document.querySelector('.download-btn');
+    const originalButtonText = downloadButton.textContent;
+    downloadButton.textContent = 'جاري التحميل...';
+    downloadButton.disabled = true;
+    
+    // Get the salary slip element to capture for PDF
+    const salarySlip = document.getElementById('salarySlip');
+    
+    // Calculate monthly data
     const monthData = {
-        basicSalary: parseFloat(employee[`${month}_Salary`] || employee.Salary || 0),
-        withdrawals: parseFloat(employee[`${month}_Withdrawals`] || 0),
-        deductions: parseFloat(employee[`${month}_Deductions`] || 0),
-        netSalary: parseFloat(employee[`${month}_NetSalary`] || 0)
+        basicSalary: parseFloat(employee[`${month}_Salary`]) || employee.Base_Salary || 0,
+        withdrawals: parseFloat(employee[`${month}_Withdrawals`]) || 0,
+        deductions: parseFloat(employee[`${month}_Deductions`]) || 0,
+        netSalary: parseFloat(employee[`${month}_NetSalary`]) || 
+                  (parseFloat(employee[`${month}_Salary`] || employee.Base_Salary || 0) - 
+                   parseFloat(employee[`${month}_Withdrawals`] || 0) - 
+                   parseFloat(employee[`${month}_Deductions`] || 0))
     };
 
     const arabicMonths = {
@@ -250,64 +325,187 @@ function generatePDF(employee, month) {
         'March': 'مارس',
         'April': 'أبريل',
         'May': 'مايو',
-        'June': 'يونيو'
+        'June': 'يونيو',
+        'July': 'يوليو',
+        'August': 'أغسطس',
+        'September': 'سبتمبر',
+        'October': 'أكتوبر',
+        'November': 'نوفمبر',
+        'December': 'ديسمبر'
     };
 
-    // Create PDF with RTL support
-    const doc = new window.jspdf.jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+    // Use html2canvas to capture the salary slip
+    setTimeout(() => {
+        try {
+            // Method 1: Using html2canvas for better Arabic support
+            const pdfContent = document.createElement('div');
+            pdfContent.className = 'pdf-content';
+            pdfContent.style.width = '210mm';
+            pdfContent.style.padding = '20mm';
+            pdfContent.style.backgroundColor = 'white';
+            pdfContent.style.direction = 'rtl';
+            pdfContent.style.fontFamily = 'Noto Naskh Arabic, Arial, sans-serif';
+            
+            // Clone the salary details to avoid modifying the original
+            const salaryDetails = document.querySelector('.salary-details').cloneNode(true);
+            
+            // Create header with logo and title
+            const header = document.createElement('div');
+            header.style.textAlign = 'center';
+            header.style.marginBottom = '20px';
+            header.innerHTML = `
+                <h1 style="color: #4CAF50; margin-bottom: 10px;">مسير الراتب</h1>
+                <p style="font-size: 16px; color: #333;">الشهر: ${arabicMonths[month]} 2024</p>
+            `;
+            
+            // Create employee info section
+            const employeeInfo = document.createElement('div');
+            employeeInfo.style.marginBottom = '20px';
+            employeeInfo.style.padding = '15px';
+            employeeInfo.style.borderRadius = '8px';
+            employeeInfo.style.backgroundColor = '#f9f9f9';
+            employeeInfo.innerHTML = `
+                <h3 style="color: #4CAF50; margin-bottom: 10px; border-bottom: 2px solid #4CAF50; padding-bottom: 5px;">بيانات الموظف</h3>
+                <p style="margin: 8px 0;"><strong>رقم الموظف:</strong> ${employee.EmployeeID}</p>
+                <p style="margin: 8px 0;"><strong>الاسم:</strong> ${employee.Name}</p>
+                <p style="margin: 8px 0;"><strong>القسم:</strong> ${employee.Department || 'غير محدد'}</p>
+            `;
+            
+            // Create salary details section
+            const salaryInfo = document.createElement('div');
+            salaryInfo.style.marginBottom = '20px';
+            salaryInfo.style.padding = '15px';
+            salaryInfo.style.borderRadius = '8px';
+            salaryInfo.style.backgroundColor = '#f9f9f9';
+            salaryInfo.innerHTML = `
+                <h3 style="color: #4CAF50; margin-bottom: 10px; border-bottom: 2px solid #4CAF50; padding-bottom: 5px;">تفاصيل الراتب</h3>
+                <p style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #eee;"><strong>الراتب الأساسي:</strong> ${monthData.basicSalary.toFixed(2)} جنيه</p>
+                <p style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #eee;"><strong>السلف:</strong> ${monthData.withdrawals.toFixed(2)} جنيه</p>
+                <p style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #eee;"><strong>الخصومات الأخرى:</strong> ${monthData.deductions.toFixed(2)} جنيه</p>
+                <p style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #eee;"><strong>إجمالي الخصومات:</strong> ${(monthData.withdrawals + monthData.deductions).toFixed(2)} جنيه</p>
+                <p style="margin: 15px 0; padding: 10px 0; border-top: 2px solid #4CAF50; font-size: 18px; color: #4CAF50;"><strong>صافي الراتب:</strong> ${monthData.netSalary.toFixed(2)} جنيه</p>
+            `;
+            
+            // Add footer
+            const footer = document.createElement('div');
+            footer.style.marginTop = '30px';
+            footer.style.textAlign = 'center';
+            footer.style.fontSize = '12px';
+            footer.style.color = '#666';
+            footer.innerHTML = `
+                <p>تم إنشاء هذا المستند بتاريخ ${new Date().toLocaleDateString('ar-EG')}</p>
+                <p>© 2024 نظام رواتب الموظفين</p>
+            `;
+            
+            // Assemble the PDF content
+            pdfContent.appendChild(header);
+            pdfContent.appendChild(employeeInfo);
+            pdfContent.appendChild(salaryInfo);
+            pdfContent.appendChild(footer);
+            
+            // Add to document temporarily
+            pdfContent.style.position = 'absolute';
+            pdfContent.style.left = '-9999px';
+            document.body.appendChild(pdfContent);
+            
+            // Use html2canvas to capture the content
+            html2canvas(pdfContent, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                logging: false,
+                allowTaint: true
+            }).then(canvas => {
+                try {
+                    // Create PDF with proper dimensions
+                    const pdf = new window.jspdf.jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a4'
+                    });
+                    
+                    // Calculate dimensions
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const ratio = canvas.width / canvas.height;
+                    const imgWidth = pdfWidth;
+                    const imgHeight = pdfWidth / ratio;
+                    
+                    // Add the image to the PDF
+                    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                    
+                    // Save the PDF
+                    pdf.save(`مسير_الراتب_${employee.EmployeeID}_${arabicMonths[month]}_2024.pdf`);
+                    
+                    // Clean up
+                    document.body.removeChild(pdfContent);
+                    downloadButton.textContent = originalButtonText;
+                    downloadButton.disabled = false;
+                } catch (error) {
+                    console.error('Error generating PDF:', error);
+                    alert('حدث خطأ أثناء إنشاء ملف PDF. يرجى المحاولة مرة أخرى.');
+                    downloadButton.textContent = originalButtonText;
+                    downloadButton.disabled = false;
+                }
+            }).catch(error => {
+                console.error('Error capturing content:', error);
+                alert('حدث خطأ أثناء التقاط محتوى الصفحة. يرجى المحاولة مرة أخرى.');
+                downloadButton.textContent = originalButtonText;
+                downloadButton.disabled = false;
+            });
+            
+        } catch (error) {
+            console.error('Error in PDF generation:', error);
+            alert('حدث خطأ أثناء إنشاء ملف PDF. يرجى المحاولة مرة أخرى.');
+            downloadButton.textContent = originalButtonText;
+            downloadButton.disabled = false;
+        }
+    }, 100); // Small delay to allow UI to update
+}
+
+// Handle forgot password
+function handleForgotPassword() {
+    const employeeId = document.getElementById('employeeId').value.trim();
+    
+    if (!employeeId) {
+        alert('الرجاء إدخال رقم الموظف أولاً');
+        return;
+    }
+    
+    // Find employee by ID
+    const employee = employeeData.find(emp => emp.EmployeeID === employeeId);
+    
+    if (!employee) {
+        alert('لم يتم العثور على موظف بهذا الرقم');
+        return;
+    }
+    
+    // Show password reset information
+    const loginForm = document.querySelector('.login-form');
+    
+    // Remove any existing reset info
+    const existingResetInfo = loginForm.querySelector('.reset-info');
+    if (existingResetInfo) {
+        loginForm.removeChild(existingResetInfo);
+    }
+    
+    // Create reset info section
+    const resetInfo = document.createElement('div');
+    resetInfo.className = 'reset-info';
+    resetInfo.innerHTML = `
+        <p>معلومات إعادة تعيين كلمة المرور:</p>
+        <p><strong>الاسم:</strong> ${employee.Name}</p>
+        <p><strong>كلمة المرور:</strong> ${employee.Password}</p>
+        <button class="close-btn">إغلاق</button>
+    `;
+    
+    loginForm.appendChild(resetInfo);
+    
+    // Add event listener to close button
+    const closeButton = resetInfo.querySelector('.close-btn');
+    closeButton.addEventListener('click', function() {
+        loginForm.removeChild(resetInfo);
     });
-
-    // Add Arabic font support using a simple font
-    doc.setFont('helvetica');
-    doc.setR2L(true); // Enable RTL mode
-
-    // Set initial position
-    let y = 20;
-    const margin = 20;
-    const lineHeight = 10;
-
-    // Title
-    doc.setFontSize(20);
-    doc.setTextColor(76, 175, 80);
-    doc.text('مسير الراتب', doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight * 2;
-
-    // Month
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`الشهر: ${arabicMonths[month]} 2024`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight * 2;
-
-    // Employee Details
-    doc.setFontSize(12);
-    doc.text(`القسم: ${employee.Department || 'غير محدد'}`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`الاسم: ${employee.Name}`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`رقم الموظف: ${employee.EmployeeID}`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight * 2;
-
-    // Salary Details
-    doc.setFontSize(14);
-    doc.text('تفاصيل الراتب:', doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-
-    doc.setFontSize(12);
-    doc.text(`صافي الراتب: ${monthData.netSalary.toFixed(2)} جنيه`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`إجمالي الخصومات: ${(monthData.withdrawals + monthData.deductions).toFixed(2)} جنيه`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`الخصومات الأخرى: ${monthData.deductions.toFixed(2)} جنيه`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`السلف: ${monthData.withdrawals.toFixed(2)} جنيه`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-    y += lineHeight;
-    doc.text(`الراتب الأساسي: ${monthData.basicSalary.toFixed(2)} جنيه`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-
-    // Save the PDF
-    doc.save(`مسير_الراتب_${employee.EmployeeID}_${month}.pdf`);
 }
 
 // Handle logout
@@ -315,6 +513,12 @@ function logout() {
     document.querySelector('.login-form').style.display = 'block';
     document.getElementById('salarySlip').style.display = 'none';
     document.getElementById('loginForm').reset();
+    
+    // Remove any reset info if present
+    const resetInfo = document.querySelector('.reset-info');
+    if (resetInfo) {
+        resetInfo.parentNode.removeChild(resetInfo);
+    }
 }
 
 // NotoNaskhArabic-Regular.js
@@ -322,4 +526,4 @@ function logout() {
   var font = 'AAEAAAASAQAABAAgR0RFRrRCsIIAA...'; // (truncated for brevity)
   jsPDFAPI.addFileToVFS('NotoNaskhArabic-Regular.ttf', font);
   jsPDFAPI.addFont('NotoNaskhArabic-Regular.ttf', 'NotoNaskhArabic', 'normal');
-})(jsPDF.API); 
+})(jsPDF.API);
